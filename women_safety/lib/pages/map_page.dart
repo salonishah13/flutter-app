@@ -172,3 +172,4 @@ class _MapPageState extends State<MapPage> {
     return 12742 * asin(sqrt(a)); // 2 * R; R = 6371 km
   }
 }
+
