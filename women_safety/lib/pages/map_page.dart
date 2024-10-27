@@ -1,99 +1,108 @@
-import 'dart:async'; 
-import 'dart:math'; // Import the dart:math library
-
+import 'dart:async';
+import 'dart:math';
 import 'package:flutter/material.dart';
 import 'package:google_maps_flutter/google_maps_flutter.dart';
 import 'package:location/location.dart';
-import 'package:flutter_polyline_points/flutter_polyline_points.dart';
-import 'package:women_safety/consts.dart';
+import '../consts.dart'; // Adjust the import according to your structure
+import '../api_service.dart'; // Adjusted import to reflect structure
 
 class MapPage extends StatefulWidget {
-  const MapPage({super.key});
+  final List<CrimeData> crimeList;
+
+  const MapPage({Key? key, required this.crimeList}) : super(key: key);
 
   @override
-  State<MapPage> createState() => _MapPageState();
+  _MapPageState createState() => _MapPageState();
 }
 
 class _MapPageState extends State<MapPage> {
   Location _locationController = Location();
+  late GoogleMapController mapController;
   final Completer<GoogleMapController> _mapController =
       Completer<GoogleMapController>();
-
-  static const LatLng _pGooglePlex =
-      LatLng(19.046351927130566, 72.87109742372125);
-  static const LatLng _pNuska = LatLng(19.036599804325423, 73.0197575589521);
-
-  LatLng? _currentP;
+  Set<Marker> _markers = {}; // To store the markers
+  LatLng? _currentLocation;
   LatLng? _lastKnownLocation;
   double _currentZoomLevel = 13.0; // Default zoom level
+  ApiService apiService =
+      ApiService('http://10.0.2.2:5000'); // For Android emulator
 
   @override
   void initState() {
     super.initState();
-    // Set location accuracy to high
-    _locationController.changeSettings(
-      accuracy: LocationAccuracy.high,
-      interval: 5000, // Get location updates every 5 seconds
-      distanceFilter: 10, // Only update if the user moves more than 10 meters
-    );
+    _fetchCrimeDataAndSetMarkers(); // Fetch data and set markers
+    getLocationUpdates(); // Start tracking the user's location
+  }
 
-    getLocationUpdates().then((_) {
-      getPolylinePoints().then((coordinates) => {
-            print(coordinates),
-          });
-    });
+  // Fetch the crime data and add markers to the map
+  void _fetchCrimeDataAndSetMarkers() async {
+    try {
+      Set<Marker> newMarkers = widget.crimeList.map((crime) {
+        return Marker(
+          markerId: MarkerId(crime.title), // Unique marker ID
+          position: LatLng(crime.latitude, crime.longitude), // Marker position
+          infoWindow: InfoWindow(
+            title: crime.title,
+            snippet: crime.location,
+          ),
+        );
+      }).toSet();
+
+      setState(() {
+        _markers = newMarkers; // Update the markers on the map
+      });
+    } catch (e) {
+      print("Error fetching crime data: $e");
+    }
   }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      body: _currentP == null
+      appBar: AppBar(
+        title: const Text('Crime Map'),
+        actions: [
+          IconButton(
+            icon: const Icon(Icons.refresh),
+            onPressed: () {
+              _fetchCrimeDataAndSetMarkers(); // Refresh markers on button press
+            },
+          ),
+        ],
+      ),
+      body: _currentLocation == null
           ? const Center(
-              child: Text("Loading..."),
-            )
+              child:
+                  CircularProgressIndicator()) // Show loading until location is found
           : GoogleMap(
               onMapCreated: (GoogleMapController controller) {
+                mapController = controller;
                 _mapController.complete(controller);
               },
               initialCameraPosition: CameraPosition(
-                target: _pGooglePlex,
-                zoom: _currentZoomLevel, // Use the current zoom level
+                target: _currentLocation ??
+                    LatLng(
+                        19.0760, 72.8777), // Default to Mumbai or user location
+                zoom: _currentZoomLevel,
               ),
-              onCameraMove: (CameraPosition position) {
-                _currentZoomLevel = position.zoom; // Save current zoom level
-              },
-              markers: {
-                Marker(
-                  markerId: MarkerId("_currentLocation"),
-                  icon: BitmapDescriptor.defaultMarker,
-                  position: _currentP!,
+              markers: _markers
+                ..add(
+                  Marker(
+                    markerId: const MarkerId(
+                        'current_location'), // Unique ID for the current location marker
+                    position: _currentLocation!, // Current location position
+                    infoWindow: const InfoWindow(
+                        title:
+                            'Current Location'), // Info for the current location marker
+                    icon: BitmapDescriptor.defaultMarkerWithHue(BitmapDescriptor
+                        .hueBlue), // Different marker color for current location
+                  ),
                 ),
-                Marker(
-                  markerId: MarkerId("_sourceLocation"),
-                  icon: BitmapDescriptor.defaultMarker,
-                  position: _pGooglePlex,
-                ),
-                Marker(
-                  markerId: MarkerId("_DestinationLocation"),
-                  icon: BitmapDescriptor.defaultMarker,
-                  position: _pNuska,
-                ),
-              },
             ),
     );
   }
 
-  Future<void> _cameraToPosition(LatLng pos) async {
-    final GoogleMapController controller = await _mapController.future;
-    CameraPosition _newCameraPosition = CameraPosition(
-      target: pos,
-      zoom: _currentZoomLevel, // Maintain the current zoom level
-    );
-    await controller.animateCamera(
-      CameraUpdate.newCameraPosition(_newCameraPosition),
-    );
-  }
-
+  // Fetch the user's current location and move the camera
   Future<void> getLocationUpdates() async {
     bool _serviceEnabled;
     PermissionStatus _permissionGranted;
@@ -117,7 +126,8 @@ class _MapPageState extends State<MapPage> {
     }
 
     // Listen for location changes
-    _locationController.onLocationChanged.listen((LocationData currentLocation) {
+    _locationController.onLocationChanged
+        .listen((LocationData currentLocation) {
       if (currentLocation.latitude != null &&
           currentLocation.longitude != null) {
         LatLng newLocation =
@@ -127,49 +137,37 @@ class _MapPageState extends State<MapPage> {
         if (_lastKnownLocation == null ||
             _calculateDistance(_lastKnownLocation!, newLocation) > 10) {
           setState(() {
-            _currentP = newLocation;
+            _currentLocation = newLocation;
             _lastKnownLocation = newLocation;
           });
           // Smooth camera movement to new position
-          _cameraToPosition(_currentP!);
+          _cameraToPosition(_currentLocation!);
         }
       }
     });
   }
 
-  Future<List<LatLng>> getPolylinePoints() async {
-    List<LatLng> polylineCoordinates = [];
-
-    PolylinePoints polylinePoints = PolylinePoints();
-    PolylineResult result = await polylinePoints.getRouteBetweenCoordinates(
-      googleApiKey: GOOGLE_MAPS_API_KEY,
-      request: PolylineRequest(
-        origin: PointLatLng(_pGooglePlex.latitude, _pGooglePlex.longitude),
-        destination: PointLatLng(_pNuska.latitude, _pNuska.longitude),
-        mode: TravelMode.driving,
-      ),
+  // Move the camera to the current position
+  Future<void> _cameraToPosition(LatLng pos) async {
+    final GoogleMapController controller = await _mapController.future;
+    CameraPosition _newCameraPosition = CameraPosition(
+      target: pos,
+      zoom: _currentZoomLevel,
     );
-
-    if (result.points.isNotEmpty) {
-      result.points.forEach((PointLatLng point) {
-        polylineCoordinates.add(LatLng(point.latitude, point.longitude));
-      });
-    } else {
-      // Handle the error here
-      print('Error fetching polyline: ${result.errorMessage}');
-    }
-
-    return polylineCoordinates;
+    await controller.animateCamera(
+      CameraUpdate.newCameraPosition(_newCameraPosition),
+    );
   }
 
   // Function to calculate distance between two coordinates using Haversine formula
   double _calculateDistance(LatLng start, LatLng end) {
     const double p = 0.017453292519943295; // Math.PI / 180
-    const double Function(num radians) c = cos;
-    final a = 0.5 - c((end.latitude - start.latitude) * p) / 2 +
-        c(start.latitude * p) * c(end.latitude * p) *
-            (1 - c((end.longitude - start.longitude) * p)) / 2;
+    double h(double radians) =>
+        0.5 - cos(radians) / 2; // Regular function without const
+    final a = h((end.latitude - start.latitude) * p) +
+        cos(start.latitude * p) *
+            cos(end.latitude * p) *
+            (1 - h((end.longitude - start.longitude) * p));
     return 12742 * asin(sqrt(a)); // 2 * R; R = 6371 km
   }
 }
-
