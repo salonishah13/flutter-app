@@ -1,5 +1,9 @@
 import 'package:flutter/material.dart';
-import 'package:women_safety/pages/map_page.dart';
+import 'package:women_safety/classes/ApiService.dart';
+import 'package:women_safety/classes/CrimeData.dart';
+// import 'package:google_maps_flutter/google_maps_flutter.dart';
+// import 'api_service.dart';
+import 'package:women_safety/pages/map_page.dart'; // Import MapPage
 
 void main() {
   runApp(const MyApp());
@@ -8,30 +12,91 @@ void main() {
 class MyApp extends StatelessWidget {
   const MyApp({super.key});
 
-  // This widget is the root of your application.
   @override
   Widget build(BuildContext context) {
     return MaterialApp(
-        title: 'Flutter Demo',
-        theme: ThemeData(
-          // This is the theme of your application.
-          //
-          // TRY THIS: Try running your application with "flutter run". You'll see
-          // the application has a purple toolbar. Then, without quitting the app,
-          // try changing the seedColor in the colorScheme below to Colors.green
-          // and then invoke "hot reload" (save your changes or press the "hot
-          // reload" button in a Flutter-supported IDE, or press "r" if you used
-          // the command line to start the app).
-          //
-          // Notice that the counter didn't reset back to zero; the application
-          // state is not lost during the reload. To reset the state, use hot
-          // restart instead.
-          //
-          // This works for code too, not just values: Most code changes can be
-          // tested with just a hot reload.
-          colorScheme: ColorScheme.fromSeed(seedColor: Colors.green),
-          useMaterial3: true,
+      title: 'Women Safety App',
+      theme: ThemeData(
+        colorScheme: ColorScheme.fromSeed(seedColor: Colors.green),
+        useMaterial3: true,
+      ),
+      home: const HomeScreen(),
+    );
+  }
+}
+
+class HomeScreen extends StatefulWidget {
+  const HomeScreen({Key? key}) : super(key: key);
+
+  @override
+  _HomeScreenState createState() => _HomeScreenState();
+}
+
+class _HomeScreenState extends State<HomeScreen> {
+  final ApiService apiService =
+      ApiService('http://192.168.233.238:5000'); // Replace with your local IP
+
+  List<CrimeData> crimeList = [
+    CrimeData(
+      title: "Theft",
+      location: "Mumbai",
+      latitude: 19.0760,
+      longitude: 72.8777,
+    ),
+    CrimeData(
+      title: "Assault",
+      location: "Pune",
+      latitude: 18.5204,
+      longitude: 73.8567,
+    ),
+  ];
+
+  // List<CrimeData> crimeList = backend_json
+
+  @override
+  void initState() {
+    super.initState();
+    fetchCrimeData();
+  }
+
+  Future<void> fetchCrimeData() async {
+    try {
+      crimeList = await apiService.fetchCrimeData();
+      print(
+          'Fetched ${crimeList.length} crime data entries.'); // Debugging line
+      setState(() {}); // Refresh UI after fetching data
+    } catch (e) {
+      print('Error fetching data: $e');
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      appBar: AppBar(
+        title: const Text('Women Safety App'),
+      ),
+      body: Center(
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            const Text('Welcome to Women Safety App!'),
+            const SizedBox(height: 20),
+            ElevatedButton(
+              onPressed: () {
+                // Navigate to the map page
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(
+                    builder: (context) => MapPage(crimeList: crimeList),
+                  ),
+                );
+              },
+              child: const Text('Go to Map'),
+            ),
+          ],
         ),
-        home: const MapPage());
+      ),
+    );
   }
 }
