@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
-import 'package:google_maps_flutter/google_maps_flutter.dart';
-import 'api_service.dart';
+import 'package:women_safety/classes/ApiService.dart';
+import 'package:women_safety/classes/CrimeData.dart';
+// import 'package:google_maps_flutter/google_maps_flutter.dart';
+// import 'api_service.dart';
 import 'package:women_safety/pages/map_page.dart'; // Import MapPage
 
 void main() {
@@ -32,9 +34,24 @@ class HomeScreen extends StatefulWidget {
 
 class _HomeScreenState extends State<HomeScreen> {
   final ApiService apiService =
-      ApiService('http://192.168.0.107:5000'); // Replace with your local IP
+      ApiService('http://192.168.233.238:5000'); // Replace with your local IP
 
-  List<CrimeData> crimeList = [];
+  List<CrimeData> crimeList = [
+    CrimeData(
+      title: "Theft",
+      location: "Mumbai",
+      latitude: 19.0760,
+      longitude: 72.8777,
+    ),
+    CrimeData(
+      title: "Assault",
+      location: "Pune",
+      latitude: 18.5204,
+      longitude: 73.8567,
+    ),
+  ];
+
+  // List<CrimeData> crimeList = backend_json
 
   @override
   void initState() {
@@ -45,7 +62,8 @@ class _HomeScreenState extends State<HomeScreen> {
   Future<void> fetchCrimeData() async {
     try {
       crimeList = await apiService.fetchCrimeData();
-      print('Fetched ${crimeList.length} crime data entries.'); // Debugging line
+      print(
+          'Fetched ${crimeList.length} crime data entries.'); // Debugging line
       setState(() {}); // Refresh UI after fetching data
     } catch (e) {
       print('Error fetching data: $e');

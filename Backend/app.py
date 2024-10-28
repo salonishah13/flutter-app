@@ -149,15 +149,15 @@ def extract_crime_type(content):
     print("No matches found, returning 'unknown'.")
     return "unknown"
 
-def save_to_csv(new_df, file_path='crime_data_maharashtra.csv'):
-    if os.path.exists(file_path):
-        existing_df = pd.read_csv(file_path)
-        updated_df = pd.concat([existing_df, new_df]).drop_duplicates().reset_index(drop=True)
-    else:
-        updated_df = new_df
-    
-    updated_df.to_csv(file_path, index=False)
-    print(f"Data saved to {file_path}")
+    def save_to_csv(new_df, file_path='crime_data_maharashtra.csv'):
+        if os.path.exists(file_path):
+            existing_df = pd.read_csv(file_path)
+            updated_df = pd.concat([existing_df, new_df]).drop_duplicates().reset_index(drop=True)
+        else:
+            updated_df = new_df
+        
+        updated_df.to_csv(file_path, index=False)
+        print(f"Data saved to {file_path}")
 
-if __name__ == '__main__':
-    app.run(host='192.168.0.107', port=5000, debug=True)  # Updated line
+    if __name__ == '__main__':
+        app.run(host='192.168.233.238', port=5000, debug=True)  # Updated line

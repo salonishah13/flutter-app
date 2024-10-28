@@ -3,8 +3,9 @@ import 'dart:math';
 import 'package:flutter/material.dart';
 import 'package:google_maps_flutter/google_maps_flutter.dart';
 import 'package:location/location.dart';
+import 'package:women_safety/classes/ApiService.dart';
+import 'package:women_safety/classes/CrimeData.dart';
 import '../consts.dart'; // Adjust the import according to your structure
-import '../api_service.dart'; // Adjusted import to reflect structure
 
 class MapPage extends StatefulWidget {
   final List<CrimeData> crimeList;
